@@ -179,7 +179,7 @@
     },
     {
       "parameters": {
-        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "url": "=http://influxdb:8087/api/v2/write?org=myorg&bucket=sensors&precision=ns",
         "options": {
           "allowUnauthorizedCerts": true,
           "response": {
@@ -228,7 +228,7 @@
     },
     {
       "parameters": {
-        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "url": "=http://influxdb:8087/api/v2/write?org=myorg&bucket=sensors&precision=ns",
         "options": {
           "allowUnauthorizedCerts": true,
           "response": {
@@ -277,7 +277,7 @@
     },
     {
       "parameters": {
-        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "url": "=http://influxdb:8087/api/v2/write?org=myorg&bucket=sensors&precision=ns",
         "options": {
           "allowUnauthorizedCerts": true,
           "response": {
@@ -326,7 +326,7 @@
     },
     {
       "parameters": {
-        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "url": "=http://influxdb:8087/api/v2/write?org=myorg&bucket=sensors&precision=ns",
         "options": {
           "allowUnauthorizedCerts": true,
           "response": {
