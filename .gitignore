@@ -1,0 +1,19 @@
+# Docker volumes data
+.n8n/
+.influxdb/
+
+# Environment variables
+.env
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log

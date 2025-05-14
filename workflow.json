@@ -1,0 +1,478 @@
+{
+  "name": "IoT Sensor Data to InfluxDB",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9155033d-6ed0-47cb-aa97-967d5822f58e",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -100
+      ],
+      "id": "87e4e32c-bcba-4b34-aac0-06e9338214c1",
+      "name": "Webhook",
+      "webhookId": "9155033d-6ed0-47cb-aa97-967d5822f58e"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.deviceInfo.deviceProfileName }}",
+                    "rightValue": "vs330",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e3687fb7-49ae-42df-a5ed-446751dd2d2f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "67e81df0-eb6e-4314-b576-17f3529b49ba",
+                    "leftValue": "={{ $json.body.deviceInfo.deviceProfileName }}",
+                    "rightValue": "AM103",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "570c3ee9-2bd0-47ab-9f0a-bc48a361c532",
+                    "leftValue": "={{ $json.body.deviceInfo.deviceProfileName }}",
+                    "rightValue": "gs301",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4d7be2ff-1e98-432b-a450-b371baac3993",
+                    "leftValue": "={{ $json.body.deviceInfo.deviceProfileName }}",
+                    "rightValue": "WS301",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -20,
+        -100
+      ],
+      "id": "2538dee7-9562-4ee3-9011-7e0db4292a05",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// VS330 Sensor Data Processing\nconst item = $input.item;\nconst data = item.json.body;\n\n// Extract device information\nconst deviceInfo = {\n  deviceName: data.deviceInfo.deviceName,\n  deviceProfileName: data.deviceInfo.deviceProfileName,\n  devEui: data.deviceInfo.devEui,\n  timestamp: new Date(data.time).toISOString()\n};\n\n// Parse VS330 specific data (temperature/humidity sensor)\nlet measurements = {};\ntry {\n  if (data.object) {\n    measurements = {\n      temperature: data.object.temperature,\n      humidity: data.object.humidity,\n      battery: data.object.battery || data.object.batteryLevel || null\n    };\n  }\n} catch (error) {\n  console.log('Error parsing VS330 payload:', error.message);\n}\n\n// Format data for InfluxDB\nconst influxData = {\n  measurement: 'sensor_data',\n  tags: {\n    device_id: deviceInfo.devEui,\n    device_name: deviceInfo.deviceName,\n    device_type: deviceInfo.deviceProfileName\n  },\n  fields: measurements,\n  timestamp: deviceInfo.timestamp\n};\n\n// Return the processed data for the next node\nreturn {\n  json: {\n    raw: data,\n    processed: true,\n    deviceInfo,\n    measurements,\n    influxData\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -320
+      ],
+      "id": "5522f99c-f137-40a6-b605-6af37bb1ccef",
+      "name": "vs330"
+    },
+    {
+      "parameters": {
+        "jsCode": "// AM103 Sensor Data Processing\nconst item = $input.item;\nconst data = item.json.body;\n\n// Extract device information\nconst deviceInfo = {\n  deviceName: data.deviceInfo.deviceName,\n  deviceProfileName: data.deviceInfo.deviceProfileName,\n  devEui: data.deviceInfo.devEui,\n  timestamp: new Date(data.time).toISOString()\n};\n\n// Parse AM103 specific data (assuming air quality sensor)\nlet measurements = {};\ntry {\n  if (data.object) {\n    measurements = {\n      co2: data.object.co2,\n      tvoc: data.object.tvoc,\n      pm25: data.object.pm25,\n      temperature: data.object.temperature,\n      humidity: data.object.humidity,\n      battery: data.object.battery || data.object.batteryLevel || null\n    };\n  }\n} catch (error) {\n  console.log('Error parsing AM103 payload:', error.message);\n}\n\n// Format data for InfluxDB\nconst influxData = {\n  measurement: 'sensor_data',\n  tags: {\n    device_id: deviceInfo.devEui,\n    device_name: deviceInfo.deviceName,\n    device_type: deviceInfo.deviceProfileName\n  },\n  fields: measurements,\n  timestamp: deviceInfo.timestamp\n};\n\n// Return the processed data for the next node\nreturn {\n  json: {\n    raw: data,\n    processed: true,\n    deviceInfo,\n    measurements,\n    influxData\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -160
+      ],
+      "id": "74a4dd0e-8942-4445-ba97-7a13159205b9",
+      "name": "AM103"
+    },
+    {
+      "parameters": {
+        "jsCode": "// GS301 Sensor Data Processing\nconst item = $input.item;\nconst data = item.json.body;\n\n// Extract device information\nconst deviceInfo = {\n  deviceName: data.deviceInfo.deviceName,\n  deviceProfileName: data.deviceInfo.deviceProfileName,\n  devEui: data.deviceInfo.devEui,\n  timestamp: new Date(data.time).toISOString()\n};\n\n// Parse GS301 specific data (assuming soil sensor)\nlet measurements = {};\ntry {\n  if (data.object) {\n    measurements = {\n      soilMoisture: data.object.soilMoisture,\n      soilTemperature: data.object.soilTemperature,\n      conductivity: data.object.conductivity,\n      battery: data.object.battery || data.object.batteryLevel || null\n    };\n  }\n} catch (error) {\n  console.log('Error parsing GS301 payload:', error.message);\n}\n\n// Format data for InfluxDB\nconst influxData = {\n  measurement: 'sensor_data',\n  tags: {\n    device_id: deviceInfo.devEui,\n    device_name: deviceInfo.deviceName,\n    device_type: deviceInfo.deviceProfileName\n  },\n  fields: measurements,\n  timestamp: deviceInfo.timestamp\n};\n\n// Return the processed data for the next node\nreturn {\n  json: {\n    raw: data,\n    processed: true,\n    deviceInfo,\n    measurements,\n    influxData\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -20
+      ],
+      "id": "546eb89c-4c99-4282-9d1a-b1100890faf7",
+      "name": "gs301"
+    },
+    {
+      "parameters": {
+        "jsCode": "// WS301 Sensor Data Processing\nconst item = $input.item;\nconst data = item.json.body;\n\n// Extract device information\nconst deviceInfo = {\n  deviceName: data.deviceInfo.deviceName,\n  deviceProfileName: data.deviceInfo.deviceProfileName,\n  devEui: data.deviceInfo.devEui,\n  timestamp: new Date(data.time).toISOString()\n};\n\n// Parse WS301 specific data (assuming weather station)\nlet measurements = {};\ntry {\n  if (data.object) {\n    measurements = {\n      temperature: data.object.temperature,\n      humidity: data.object.humidity,\n      pressure: data.object.pressure,\n      windSpeed: data.object.windSpeed,\n      windDirection: data.object.windDirection,\n      rainfall: data.object.rainfall,\n      battery: data.object.battery || data.object.batteryLevel || null\n    };\n  }\n} catch (error) {\n  console.log('Error parsing WS301 payload:', error.message);\n}\n\n// Format data for InfluxDB\nconst influxData = {\n  measurement: 'sensor_data',\n  tags: {\n    device_id: deviceInfo.devEui,\n    device_name: deviceInfo.deviceName,\n    device_type: deviceInfo.deviceProfileName\n  },\n  fields: measurements,\n  timestamp: deviceInfo.timestamp\n};\n\n// Return the processed data for the next node\nreturn {\n  json: {\n    raw: data,\n    processed: true,\n    deviceInfo,\n    measurements,\n    influxData\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        120
+      ],
+      "id": "112934a9-5f75-45af-a6a8-92747824e1d9",
+      "name": "WS301"
+    },
+    {
+      "parameters": {
+        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": {
+          "value": "Token my-super-secret-auth-token"
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/plain"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ $json.influxData.measurement }},{{ Object.entries($json.influxData.tags).map(([key, value]) => key + '=' + value).join(',') }} {{ Object.entries($json.influxData.fields).filter(([key, value]) => value !== null && value !== undefined).map(([key, value]) => key + '=' + (typeof value === 'string' ? '\"' + value + '\"' : value)).join(',') }} {{ new Date($json.influxData.timestamp).getTime() * 1000000 }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        -320
+      ],
+      "id": "a7e4e32c-bcba-4b34-aac0-06e9338214d2",
+      "name": "InfluxDB VS330"
+    },
+    {
+      "parameters": {
+        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": {
+          "value": "Token my-super-secret-auth-token"
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/plain"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ $json.influxData.measurement }},{{ Object.entries($json.influxData.tags).map(([key, value]) => key + '=' + value).join(',') }} {{ Object.entries($json.influxData.fields).filter(([key, value]) => value !== null && value !== undefined).map(([key, value]) => key + '=' + (typeof value === 'string' ? '\"' + value + '\"' : value)).join(',') }} {{ new Date($json.influxData.timestamp).getTime() * 1000000 }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        -160
+      ],
+      "id": "b7e4e32c-bcba-4b34-aac0-06e9338214d3",
+      "name": "InfluxDB AM103"
+    },
+    {
+      "parameters": {
+        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": {
+          "value": "Token my-super-secret-auth-token"
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/plain"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ $json.influxData.measurement }},{{ Object.entries($json.influxData.tags).map(([key, value]) => key + '=' + value).join(',') }} {{ Object.entries($json.influxData.fields).filter(([key, value]) => value !== null && value !== undefined).map(([key, value]) => key + '=' + (typeof value === 'string' ? '\"' + value + '\"' : value)).join(',') }} {{ new Date($json.influxData.timestamp).getTime() * 1000000 }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        -20
+      ],
+      "id": "c7e4e32c-bcba-4b34-aac0-06e9338214d4",
+      "name": "InfluxDB GS301"
+    },
+    {
+      "parameters": {
+        "url": "=http://influxdb:8086/api/v2/write?org=myorg&bucket=sensors&precision=ns",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": {
+          "value": "Token my-super-secret-auth-token"
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/plain"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ $json.influxData.measurement }},{{ Object.entries($json.influxData.tags).map(([key, value]) => key + '=' + value).join(',') }} {{ Object.entries($json.influxData.fields).filter(([key, value]) => value !== null && value !== undefined).map(([key, value]) => key + '=' + (typeof value === 'string' ? '\"' + value + '\"' : value)).join(',') }} {{ new Date($json.influxData.timestamp).getTime() * 1000000 }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        120
+      ],
+      "id": "d7e4e32c-bcba-4b34-aac0-06e9338214d5",
+      "name": "InfluxDB WS301"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "vs330",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AM103",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "gs301",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WS301",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "vs330": {
+      "main": [
+        [
+          {
+            "node": "InfluxDB VS330",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AM103": {
+      "main": [
+        [
+          {
+            "node": "InfluxDB AM103",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gs301": {
+      "main": [
+        [
+          {
+            "node": "InfluxDB GS301",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WS301": {
+      "main": [
+        [
+          {
+            "node": "InfluxDB WS301",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "278b6a14-963e-49dd-8cf3-d06c96a1e332",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ad0fa6a680084aecee7371c3aad15b90dd164e9a13e6bfd51adf0aaf4353ae39"
+  },
+  "id": "B1xLRKYMmr5JBOBM",
+  "tags": []
+}
