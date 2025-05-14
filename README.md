@@ -11,7 +11,7 @@ This repository contains a Docker Compose setup for running n8n workflow automat
 
 1. Clone this repository:
    ```
-   git clone <your-repository-url>
+   git clone https://github.com/dvirchakim/iot_stack.git
    cd n8n-influxdb-stack
    ```
 
