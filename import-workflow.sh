@@ -1,15 +1,11 @@
 #!/bin/bash
 
-set -e
-
 # Configuration
 N8N_HOST="localhost"
 N8N_PORT="5678"
 N8N_URL="http://${N8N_HOST}:${N8N_PORT}"
-N8N_EMAIL="admin@example.com"
-N8N_PASSWORD="password123"
 WORKFLOW_FILE="workflow.json"
-MAX_RETRIES=10
+MAX_RETRIES=20
 RETRY_DELAY=5
 
 # Colors for output
@@ -21,199 +17,70 @@ NC="\033[0m" # No Color
 echo -e "${GREEN}IoT Sensor Data Workflow Import Tool${NC}"
 echo "----------------------------------------"
 
-# Function to check if n8n is ready
-check_n8n_ready() {
-  echo -e "${YELLOW}Checking if n8n is ready...${NC}"
-  local retry_count=0
-  
-  while [ $retry_count -lt $MAX_RETRIES ]; do
-    if curl -s "${N8N_URL}/healthz" | grep -q "ok"; then
-      echo -e "${GREEN}n8n is up and running!${NC}"
-      return 0
-    else
-      retry_count=$((retry_count+1))
-      echo -e "${YELLOW}n8n not ready yet. Waiting ${RETRY_DELAY} seconds... (Attempt ${retry_count}/${MAX_RETRIES})${NC}"
-      sleep $RETRY_DELAY
-    fi
-  done
-  
-  echo -e "${RED}n8n did not become ready after ${MAX_RETRIES} attempts.${NC}"
-  echo -e "${YELLOW}Check if the n8n container is running with 'docker-compose ps'${NC}"
-  return 1
-}
+# Check if workflow file exists
+if [ ! -f "$WORKFLOW_FILE" ]; then
+  echo -e "${RED}Error: Workflow file '$WORKFLOW_FILE' not found!${NC}"
+  echo "Make sure you're running this script from the project root directory."
+  exit 1
+fi
 
-# Function to check if workflow file exists
-check_workflow_file() {
-  if [ ! -f "$WORKFLOW_FILE" ]; then
-    echo -e "${RED}Error: Workflow file '$WORKFLOW_FILE' not found!${NC}"
-    echo "Make sure you're running this script from the project root directory."
+echo -e "${GREEN}Found workflow file: $WORKFLOW_FILE${NC}"
+
+# Wait for n8n to be fully ready
+echo -e "${YELLOW}Waiting for n8n to be ready...${NC}"
+retry_count=0
+
+while [ $retry_count -lt $MAX_RETRIES ]; do
+  if curl -s "${N8N_URL}/healthz" | grep -q "ok"; then
+    echo -e "${GREEN}n8n is up and running!${NC}"
+    # Wait a bit more to ensure the API is fully initialized
+    echo -e "${YELLOW}Waiting 5 more seconds for n8n API to initialize...${NC}"
+    sleep 5
+    break
+  else
+    retry_count=$((retry_count+1))
+    echo -e "${YELLOW}n8n not ready yet. Waiting ${RETRY_DELAY} seconds... (Attempt ${retry_count}/${MAX_RETRIES})${NC}"
+    sleep $RETRY_DELAY
+  fi
+  
+  if [ $retry_count -eq $MAX_RETRIES ]; then
+    echo -e "${RED}n8n did not become ready after ${MAX_RETRIES} attempts.${NC}"
+    echo -e "${YELLOW}Check container logs with: docker-compose logs n8n${NC}"
     exit 1
   fi
-  
-  echo -e "${GREEN}Found workflow file: $WORKFLOW_FILE${NC}"
-}
+done
 
-# Function to check if n8n is ready for workflow import
-check_n8n_ready_for_import() {
-  echo -e "${YELLOW}Checking if n8n is ready for workflow import...${NC}"
-  
-  # Check if n8n API is accessible
-  local api_status=$(curl -s "${N8N_URL}/rest/workflows")
-  
-  if [[ $api_status == *"data"* ]]; then
-    echo -e "${GREEN}n8n API is accessible and ready for workflow import.${NC}"
-    return 0
-  else
-    echo -e "${YELLOW}n8n API not ready yet. Will retry later.${NC}"
-    return 0  # Continue anyway
-  fi
-}
+# Import the workflow
+echo -e "${YELLOW}Importing workflow...${NC}"
 
-# Function to login and get auth token
-get_auth_token() {
-  echo -e "${YELLOW}Logging in to n8n...${NC}"
+# Try multiple times with increasing delays
+for attempt in {1..5}; do
+  echo -e "${YELLOW}Import attempt $attempt of 5...${NC}"
   
-  local auth_response=$(curl -s -X POST "${N8N_URL}/rest/login" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"'"$N8N_EMAIL"'","password":"'"$N8N_PASSWORD"'"}')
-  
-  # Extract the token
-  local api_token=$(echo $auth_response | grep -o '"token":"[^"]*"' | cut -d '"' -f 4)
-  
-  if [ -z "$api_token" ]; then
-    echo -e "${RED}Failed to get authentication token.${NC}"
-    echo "Response: $auth_response"
-    echo -e "${YELLOW}Trying alternative authentication method...${NC}"
-    
-    # Try the cookie-based authentication as fallback
-    local cookie_jar="/tmp/n8n_cookies.txt"
-    curl -s -c "$cookie_jar" -X POST "${N8N_URL}/rest/login" \
-      -H "Content-Type: application/json" \
-      -d '{"email":"'"$N8N_EMAIL"'","password":"'"$N8N_PASSWORD"'"}' > /dev/null
-    
-    # Check if we got a cookie
-    if [ -s "$cookie_jar" ]; then
-      echo -e "${GREEN}Successfully authenticated with cookies.${NC}"
-      echo "$cookie_jar"
-      return 0
-    else
-      echo -e "${RED}All authentication methods failed.${NC}"
-      return 1
-    fi
-  fi
-  
-  echo -e "${GREEN}Successfully authenticated with token.${NC}"
-  echo "$api_token"
-  return 0
-}
-
-# Function to import workflow
-import_workflow() {
-  local auth_method=$1
-  local auth_value=$2
-  
-  echo -e "${YELLOW}Preparing workflow for import...${NC}"
-  local workflow_json=$(cat "$WORKFLOW_FILE")
-  
-  echo -e "${YELLOW}Importing workflow into n8n...${NC}"
-  
-  local import_cmd
-  if [ "$auth_method" = "token" ]; then
-    import_cmd="curl -s -X POST '${N8N_URL}/rest/workflows' \
-      -H 'Content-Type: application/json' \
-      -H 'Accept: application/json' \
-      -H 'X-N8N-Skip-Webhook-Register: true' \
-      -H 'Authorization: Bearer $auth_value' \
-      -d @${WORKFLOW_FILE}"
-  else
-    import_cmd="curl -s -X POST '${N8N_URL}/rest/workflows' \
-      -H 'Content-Type: application/json' \
-      -H 'Accept: application/json' \
-      -H 'X-N8N-Skip-Webhook-Register: true' \
-      -b '$auth_value' \
-      -d @${WORKFLOW_FILE}"
-  fi
-  
-  local import_response=$(eval $import_cmd)
-  
-  # Check if import was successful
-  if [[ $import_response == *"id"* ]]; then
-    echo -e "${GREEN}Workflow imported successfully!${NC}"
-    local workflow_id=$(echo $import_response | grep -o '"id":"[^"]*"' | cut -d '"' -f 4)
-    echo -e "${GREEN}Workflow ID: $workflow_id${NC}"
-    echo -e "${GREEN}You can now access it at ${N8N_URL}/workflow/edit/$workflow_id${NC}"
-    return 0
-  else
-    echo -e "${RED}Error importing workflow:${NC}"
-    echo "$import_response"
-    return 1
-  fi
-}
-
-# Function to directly import workflow without authentication
-import_workflow_direct() {
-  echo -e "${YELLOW}Preparing workflow for direct import...${NC}"
-  local workflow_json=$(cat "$WORKFLOW_FILE")
-  
-  echo -e "${YELLOW}Importing workflow into n8n...${NC}"
-  
-  local import_response=$(curl -s -X POST "${N8N_URL}/rest/workflows" \
+  # Use curl with verbose output to see what's happening
+  response=$(curl -s -X POST "${N8N_URL}/rest/workflows" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "X-N8N-Skip-Webhook-Register: true" \
     -d @${WORKFLOW_FILE})
   
   # Check if import was successful
-  if [[ $import_response == *"id"* ]]; then
-    echo -e "${GREEN}Workflow imported successfully!${NC}"
-    local workflow_id=$(echo $import_response | grep -o '"id":"[^"]*"' | cut -d '"' -f 4)
-    echo -e "${GREEN}Workflow ID: $workflow_id${NC}"
-    echo -e "${GREEN}You can now access it at ${N8N_URL}/workflow/edit/$workflow_id${NC}"
-    return 0
-  else
-    echo -e "${RED}Error importing workflow:${NC}"
-    echo "$import_response"
-    return 1
-  fi
-}
-
-# Main execution
-main() {
-  # Check if workflow file exists
-  check_workflow_file
-  
-  # Wait for n8n to be ready
-  check_n8n_ready || exit 1
-  
-  # Check if n8n is ready for workflow import
-  check_n8n_ready_for_import
-  
-  # Try direct import first (since user management is disabled)
-  if import_workflow_direct; then
-    echo -e "${GREEN}Direct workflow import successful!${NC}"
+  if echo "$response" | grep -q '"id":"'; then
+    workflow_id=$(echo "$response" | grep -o '"id":"[^"]*"' | head -1 | cut -d '"' -f 4)
+    echo -e "${GREEN}Success! Workflow imported with ID: $workflow_id${NC}"
+    echo -e "${GREEN}You can access it at: ${N8N_URL}/workflow/edit/$workflow_id${NC}"
     exit 0
-  fi
-  
-  echo -e "${YELLOW}Direct import failed, trying with authentication...${NC}"
-  
-  # Get authentication token as fallback
-  auth_result=$(get_auth_token)
-  auth_status=$?
-  
-  if [ $auth_status -eq 0 ]; then
-    # Determine auth method based on response
-    if [[ $auth_result == /tmp/* ]]; then
-      # Cookie-based auth
-      import_workflow "cookie" "$auth_result"
-    else
-      # Token-based auth
-      import_workflow "token" "$auth_result"
-    fi
   else
-    echo -e "${RED}Authentication failed. Cannot import workflow.${NC}"
-    exit 1
+    echo -e "${RED}Import failed on attempt $attempt.${NC}"
+    echo -e "${YELLOW}Response: $response${NC}"
+    echo -e "${YELLOW}Waiting before retry...${NC}"
+    sleep $((attempt * 5))
   fi
-}
+done
 
-# Run the main function
-main
+echo -e "${RED}Failed to import workflow after multiple attempts.${NC}"
+echo -e "${YELLOW}Try manually importing the workflow through the n8n web interface:${NC}"
+echo -e "${YELLOW}1. Open ${N8N_URL} in your browser${NC}"
+echo -e "${YELLOW}2. Go to Workflows > Import from file${NC}"
+echo -e "${YELLOW}3. Upload the workflow.json file${NC}"
+exit 1
