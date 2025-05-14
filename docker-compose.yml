@@ -13,6 +13,10 @@ services:
       - NODE_ENV=production
       - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
+      # Disable secure cookie requirement for local development
+      - N8N_SECURE_COOKIE=false
+      # Allow HTTP connections
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
       # Reduce memory usage for better performance
       - NODE_OPTIONS=--max-old-space-size=512
       # Skip waiting for InfluxDB
