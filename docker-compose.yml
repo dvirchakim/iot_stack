@@ -13,10 +13,19 @@ services:
       - NODE_ENV=production
       - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
+      # Reduce memory usage for better performance
+      - NODE_OPTIONS=--max-old-space-size=512
+      # Skip waiting for InfluxDB
+      - WAIT_HOSTS_TIMEOUT=30
     volumes:
       - n8n_data:/home/node/.n8n
-    depends_on:
-      - influxdb
+    # Use healthcheck to ensure n8n is running properly
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - n8n-network
 
@@ -32,8 +41,20 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-myorg}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-sensors}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-auth-token}
+      # Performance optimizations
+      - INFLUXD_BOLT_PATH=/var/lib/influxdb2/influxd.bolt
+      - INFLUXD_ENGINE_PATH=/var/lib/influxdb2/engine
+      # Reduce memory usage
+      - INFLUXD_STORAGE_CACHE_MAX_MEMORY_SIZE=256MB
     volumes:
       - influxdb_data:/var/lib/influxdb2
+    # Use healthcheck to ensure InfluxDB is running properly
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - n8n-network
 
