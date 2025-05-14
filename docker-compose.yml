@@ -7,20 +7,34 @@ services:
     ports:
       - "5678:5678"
     environment:
+      # Basic configuration
       - N8N_HOST=${N8N_HOST:-n8n}
       - N8N_PORT=${N8N_PORT:-5678}
       - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
       - NODE_ENV=production
       - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
+      
+      # Authentication settings - create default user on first run
+      - N8N_EMAIL=admin@example.com
+      - N8N_PASSWORD=password123
+      - N8N_ENCRYPTION_KEY=a-random-32-character-string-for-enc
+      
       # Disable secure cookie requirement for local development
       - N8N_SECURE_COOKIE=false
       # Allow HTTP connections
       - NODE_TLS_REJECT_UNAUTHORIZED=0
-      # Reduce memory usage for better performance
+      
+      # Performance optimizations
       - NODE_OPTIONS=--max-old-space-size=512
+      - EXECUTIONS_PROCESS=main
+      - EXECUTIONS_MODE=regular
+      
       # Skip waiting for InfluxDB
       - WAIT_HOSTS_TIMEOUT=30
+      
+      # Webhook settings
+      - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
     volumes:
       - n8n_data:/home/node/.n8n
     # Use healthcheck to ensure n8n is running properly
@@ -39,17 +53,20 @@ services:
     ports:
       - "8087:8086"
     environment:
+      # Setup configuration
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
       - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-adminpassword}
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-myorg}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-sensors}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-my-super-secret-auth-token}
+      - DOCKER_INFLUXDB_INIT_RETENTION=${INFLUXDB_RETENTION:-30d}
+      
       # Performance optimizations
       - INFLUXD_BOLT_PATH=/var/lib/influxdb2/influxd.bolt
       - INFLUXD_ENGINE_PATH=/var/lib/influxdb2/engine
-      # Reduce memory usage
       - INFLUXD_STORAGE_CACHE_MAX_MEMORY_SIZE=256MB
+      - INFLUXD_STORAGE_COMPACT_THROUGHPUT_BURST=20MB
     volumes:
       - influxdb_data:/var/lib/influxdb2
     # Use healthcheck to ensure InfluxDB is running properly
