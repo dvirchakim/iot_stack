@@ -53,32 +53,20 @@ check_workflow_file() {
   echo -e "${GREEN}Found workflow file: $WORKFLOW_FILE${NC}"
 }
 
-# Function to handle user setup
-setup_user() {
-  echo -e "${YELLOW}Checking if n8n needs initial setup...${NC}"
+# Function to check if n8n is ready for workflow import
+check_n8n_ready_for_import() {
+  echo -e "${YELLOW}Checking if n8n is ready for workflow import...${NC}"
   
-  # Check if we need to create a user (n8n might be in setup mode)
-  local setup_status=$(curl -s "${N8N_URL}/rest/setup")
+  # Check if n8n API is accessible
+  local api_status=$(curl -s "${N8N_URL}/rest/workflows")
   
-  if [[ $setup_status == *"setupStatus":"not-completed"* ]]; then
-    echo -e "${YELLOW}Creating initial user...${NC}"
-    # Create the initial user
-    local setup_response=$(curl -s -X POST "${N8N_URL}/rest/setup" \
-      -H "Content-Type: application/json" \
-      -d '{"email":"'"$N8N_EMAIL"'","password":"'"$N8N_PASSWORD"'","firstName":"Admin","lastName":"User"}')
-    
-    if [[ $setup_response == *""success":true"* ]]; then
-      echo -e "${GREEN}Initial user created successfully.${NC}"
-    else
-      echo -e "${RED}Failed to create initial user.${NC}"
-      echo "Response: $setup_response"
-      return 1
-    fi
+  if [[ $api_status == *"data"* ]]; then
+    echo -e "${GREEN}n8n API is accessible and ready for workflow import.${NC}"
+    return 0
   else
-    echo -e "${GREEN}n8n is already set up.${NC}"
+    echo -e "${YELLOW}n8n API not ready yet. Will retry later.${NC}"
+    return 0  # Continue anyway
   fi
-  
-  return 0
 }
 
 # Function to login and get auth token
@@ -162,6 +150,33 @@ import_workflow() {
   fi
 }
 
+# Function to directly import workflow without authentication
+import_workflow_direct() {
+  echo -e "${YELLOW}Preparing workflow for direct import...${NC}"
+  local workflow_json=$(cat "$WORKFLOW_FILE")
+  
+  echo -e "${YELLOW}Importing workflow into n8n...${NC}"
+  
+  local import_response=$(curl -s -X POST "${N8N_URL}/rest/workflows" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -H "X-N8N-Skip-Webhook-Register: true" \
+    -d @${WORKFLOW_FILE})
+  
+  # Check if import was successful
+  if [[ $import_response == *"id"* ]]; then
+    echo -e "${GREEN}Workflow imported successfully!${NC}"
+    local workflow_id=$(echo $import_response | grep -o '"id":"[^"]*"' | cut -d '"' -f 4)
+    echo -e "${GREEN}Workflow ID: $workflow_id${NC}"
+    echo -e "${GREEN}You can now access it at ${N8N_URL}/workflow/edit/$workflow_id${NC}"
+    return 0
+  else
+    echo -e "${RED}Error importing workflow:${NC}"
+    echo "$import_response"
+    return 1
+  fi
+}
+
 # Main execution
 main() {
   # Check if workflow file exists
@@ -170,10 +185,18 @@ main() {
   # Wait for n8n to be ready
   check_n8n_ready || exit 1
   
-  # Setup user if needed
-  setup_user || exit 1
+  # Check if n8n is ready for workflow import
+  check_n8n_ready_for_import
   
-  # Get authentication token
+  # Try direct import first (since user management is disabled)
+  if import_workflow_direct; then
+    echo -e "${GREEN}Direct workflow import successful!${NC}"
+    exit 0
+  fi
+  
+  echo -e "${YELLOW}Direct import failed, trying with authentication...${NC}"
+  
+  # Get authentication token as fallback
   auth_result=$(get_auth_token)
   auth_status=$?
   

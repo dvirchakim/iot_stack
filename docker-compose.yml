@@ -8,7 +8,7 @@ services:
       - "5678:5678"
     environment:
       # Basic configuration
-      - N8N_HOST=${N8N_HOST:-n8n}
+      - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=${N8N_PORT:-5678}
       - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
       - NODE_ENV=production
@@ -16,9 +16,7 @@ services:
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
       
       # Authentication settings - create default user on first run
-      - N8N_EMAIL=admin@example.com
-      - N8N_PASSWORD=password123
-      - N8N_ENCRYPTION_KEY=a-random-32-character-string-for-enc
+      - N8N_USER_MANAGEMENT_DISABLED=true
       
       # Disable secure cookie requirement for local development
       - N8N_SECURE_COOKIE=false
